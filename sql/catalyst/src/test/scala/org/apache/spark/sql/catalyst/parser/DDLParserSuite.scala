@@ -717,8 +717,8 @@ class DDLParserSuite extends AnalysisTest {
     val parsedPlan = parsePlan(sqlStatement)
     val newTableToken = sqlStatement.split(" ")(0).trim.toUpperCase(Locale.ROOT)
     parsedPlan match {
-      case create: CreateTableStatement if newTableToken == "CREATE" =>
-        assert(create.ifNotExists == expectedIfNotExists)
+      case create: CreateV2Table if newTableToken == "CREATE" =>
+        assert(create.ignoreIfExists == expectedIfNotExists)
       case ctas: CreateTableAsSelectStatement if newTableToken == "CREATE" =>
         assert(ctas.ifNotExists == expectedIfNotExists)
       case replace: ReplaceTableStatement if newTableToken == "REPLACE" =>
@@ -2450,9 +2450,10 @@ class DDLParserSuite extends AnalysisTest {
   private object TableSpec {
     def apply(plan: LogicalPlan): TableSpec = {
       plan match {
-        case create: CreateTableStatement =>
+        case create @ CreateV2Table(
+            UnresolvedDBObjectName(nameParts, _), _, _, _, _, _, _, _, _, _, _, _) =>
           TableSpec(
-            create.tableName,
+            nameParts,
             Some(create.tableSchema),
             create.partitioning,
             create.bucketSpec,
