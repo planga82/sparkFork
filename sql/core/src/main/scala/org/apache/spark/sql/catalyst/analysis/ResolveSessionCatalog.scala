@@ -158,30 +158,22 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
 
     // For CREATE TABLE [AS SELECT], we should use the v1 command if the catalog is resolved to the
     // session catalog and the table provider is not v2.
-    case c @ CreateTableStatement(
-         SessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _, _, _) =>
-      val (storageFormat, provider) = getStorageFormatAndProvider(
+    case c @ CreateV2Table(
+        ResolvedDBObjectName(catalog, name), _, _, _, _, prov, _, _, _, serde, _, _)
+        if isSessionCatalog(catalog) && !isV2Provider(prov, serde, ctas = false) =>
+
+      val storageFormat = getStorageFormat(
         c.provider, c.options, c.location, c.serde, ctas = false)
-      if (!isV2Provider(provider)) {
-        val tableDesc = buildCatalogTable(tbl.asTableIdentifier, c.tableSchema,
-          c.partitioning, c.bucketSpec, c.properties, provider, c.location,
-          c.comment, storageFormat, c.external)
-        val mode = if (c.ifNotExists) SaveMode.Ignore else SaveMode.ErrorIfExists
-        CreateTable(tableDesc, mode, None)
-      } else {
-        CreateV2Table(
-          catalog.asTableCatalog,
-          tbl.asIdentifier,
-          c.tableSchema,
-          // convert the bucket spec and add it as a transform
-          c.partitioning ++ c.bucketSpec.map(_.asTransform),
-          convertTableProperties(c),
-          ignoreIfExists = c.ifNotExists)
-      }
+      val tableDesc = buildCatalogTable(name.asTableIdentifier, c.tableSchema, c.partitioning,
+        c.bucketSpec, c.properties, getProvider(c.provider, c.serde, ctas = false),
+        c.location, c.comment, storageFormat, c.external)
+      val mode = if (c.ignoreIfExists) SaveMode.Ignore else SaveMode.ErrorIfExists
+      CreateTable(tableDesc, mode, None)
 
     case c @ CreateTableAsSelectStatement(
          SessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _, _, _, _) =>
-      val (storageFormat, provider) = getStorageFormatAndProvider(
+      val provider = getProvider(c.provider, c.serde, ctas = true)
+      val storageFormat = getStorageFormat(
         c.provider, c.options, c.location, c.serde, ctas = true)
       if (!isV2Provider(provider)) {
         val tableDesc = buildCatalogTable(tbl.asTableIdentifier, new StructType,
@@ -488,12 +480,27 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
     case _ => throw QueryCompilationErrors.sqlOnlySupportedWithV1TablesError(sql)
   }
 
-  private def getStorageFormatAndProvider(
+  private def getProvider(
+      provider: Option[String],
+      maybeSerdeInfo: Option[SerdeInfo],
+      ctas: Boolean): String = {
+    provider.getOrElse {
+      if (maybeSerdeInfo.isDefined ||
+          (conf.getConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT)
+            && !(ctas && conf.convertCTAS))) {
+        DDLUtils.HIVE_PROVIDER
+      } else {
+        conf.defaultDataSourceName
+      }
+    }
+  }
+
+  private def getStorageFormat(
       provider: Option[String],
       options: Map[String, String],
       location: Option[String],
       maybeSerdeInfo: Option[SerdeInfo],
-      ctas: Boolean): (CatalogStorageFormat, String) = {
+      ctas: Boolean): CatalogStorageFormat = {
     val nonHiveStorageFormat = CatalogStorageFormat.empty.copy(
       locationUri = location.map(CatalogUtils.stringToURI),
       properties = options)
@@ -507,7 +514,7 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
         throw QueryCompilationErrors.cannotCreateTableWithBothProviderAndSerdeError(
           provider, maybeSerdeInfo)
       }
-      (nonHiveStorageFormat, provider.get)
+      nonHiveStorageFormat
     } else if (maybeSerdeInfo.isDefined) {
       val serdeInfo = maybeSerdeInfo.get
       SerdeInfo.checkSerdePropMerging(serdeInfo.serdeProperties, defaultHiveStorage.properties)
@@ -532,7 +539,7 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
           serde = serdeInfo.serde.orElse(defaultHiveStorage.serde),
           properties = serdeInfo.serdeProperties ++ defaultHiveStorage.properties)
       }
-      (storageFormat, DDLUtils.HIVE_PROVIDER)
+      storageFormat
     } else {
       // If neither USING nor STORED AS/ROW FORMAT is specified, we create native data source
       // tables if:
@@ -540,12 +547,12 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
       //   2. It's a CTAS and `conf.convertCTAS` is true.
       val createHiveTableByDefault = conf.getConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT)
       if (!createHiveTableByDefault || (ctas && conf.convertCTAS)) {
-        (nonHiveStorageFormat, conf.defaultDataSourceName)
+        nonHiveStorageFormat
       } else {
         logWarning("A Hive serde table will be created as there is no table provider " +
           s"specified. You can set ${SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT.key} to false " +
           "so that native data source table will be created instead.")
-        (defaultHiveStorage, DDLUtils.HIVE_PROVIDER)
+        defaultHiveStorage
       }
     }
   }
@@ -640,6 +647,12 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
       case _ => false
     }
   }
+
+  private def isV2Provider(
+      provider: Option[String],
+      maybeSerdeInfo: Option[SerdeInfo],
+      ctas: Boolean): Boolean =
+    isV2Provider(getProvider(provider, maybeSerdeInfo, ctas))
 
   private object DatabaseInSessionCatalog {
     def unapply(resolved: ResolvedNamespace): Option[String] = resolved match {

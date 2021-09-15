@@ -18,6 +18,7 @@
 package org.apache.spark.sql.catalyst.plans.logical
 
 import org.apache.spark.sql.catalyst.analysis.{NamedRelation, PartitionSpec, UnresolvedException}
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSet, Expression, Unevaluable}
 import org.apache.spark.sql.catalyst.plans.DescribeCommandSchema
@@ -189,19 +190,34 @@ trait V2CreateTablePlan extends LogicalPlan {
   def withPartitioning(rewritten: Seq[Transform]): V2CreateTablePlan
 }
 
+/** This trait is going to be used for the migration. It will disappear when it finish */
+trait V2CreateTablePlanMigration extends V2CreateTablePlan {
+  def tableName: Identifier = null
+  def name: LogicalPlan
+}
+
 /**
  * Create a new table with a v2 catalog.
  */
 case class CreateV2Table(
-    catalog: TableCatalog,
-    tableName: Identifier,
+    name: LogicalPlan,
     tableSchema: StructType,
     partitioning: Seq[Transform],
+    bucketSpec: Option[BucketSpec],
     properties: Map[String, String],
-    ignoreIfExists: Boolean) extends LeafCommand with V2CreateTablePlan {
+    provider: Option[String],
+    options: Map[String, String],
+    location: Option[String],
+    comment: Option[String],
+    serde: Option[SerdeInfo],
+    external: Boolean,
+    ignoreIfExists: Boolean) extends UnaryCommand with V2CreateTablePlanMigration {
   override def withPartitioning(rewritten: Seq[Transform]): V2CreateTablePlan = {
     this.copy(partitioning = rewritten)
   }
+  override def child: LogicalPlan = name
+  override protected def withNewChildInternal(newChild: LogicalPlan): CreateV2Table =
+    copy(name = newChild)
 }
 
 /**

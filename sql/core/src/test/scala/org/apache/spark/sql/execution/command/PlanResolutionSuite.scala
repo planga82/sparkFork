@@ -482,8 +482,13 @@ class PlanResolutionSuite extends AnalysisTest {
 
     parseAndResolve(sql) match {
       case create: CreateV2Table =>
-        assert(create.catalog.name == "testcat")
-        assert(create.tableName == Identifier.of(Array("mydb"), "table_name"))
+        create.name match {
+          case ResolvedTable(catalog, ident, _, _) =>
+            assert(catalog.name == "testcat")
+            assert(ident == Identifier.of(Array("mydb"), "table_name"))
+          case other => fail(s"ResolvedTable is expected: $other")
+        }
+
         assert(create.tableSchema == new StructType()
             .add("id", LongType)
             .add("description", StringType)
@@ -522,8 +527,12 @@ class PlanResolutionSuite extends AnalysisTest {
 
     parseAndResolve(sql, withDefault = true) match {
       case create: CreateV2Table =>
-        assert(create.catalog.name == "testcat")
-        assert(create.tableName == Identifier.of(Array("mydb"), "table_name"))
+        create.name match {
+          case ResolvedTable(catalog, ident, _, _) =>
+            assert(catalog.name == "testcat")
+            assert(ident == Identifier.of(Array("mydb"), "table_name"))
+          case other => fail(s"ResolvedTable is expected: $other")
+        }
         assert(create.tableSchema == new StructType()
             .add("id", LongType)
             .add("description", StringType)
@@ -560,8 +569,12 @@ class PlanResolutionSuite extends AnalysisTest {
 
     parseAndResolve(sql) match {
       case create: CreateV2Table =>
-        assert(create.catalog.name == CatalogManager.SESSION_CATALOG_NAME)
-        assert(create.tableName == Identifier.of(Array("mydb"), "page_view"))
+        create.name match {
+          case ResolvedTable(catalog, ident, _, _) =>
+            assert(catalog.name == CatalogManager.SESSION_CATALOG_NAME)
+            assert(ident == Identifier.of(Array("mydb"), "page_view"))
+          case other => fail(s"ResolvedTable is expected: $other")
+        }
         assert(create.tableSchema == new StructType()
             .add("id", LongType)
             .add("description", StringType)

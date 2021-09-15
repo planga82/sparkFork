@@ -41,6 +41,7 @@ class DataSourceV2Strategy(session: SparkSession) extends Strategy with Predicat
 
   import DataSourceV2Implicits._
   import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
+  import org.apache.spark.sql.connector.catalog.CatalogV2Util._
 
   private def withProjectAndFilter(
       project: Seq[NamedExpression],
@@ -148,9 +149,10 @@ class DataSourceV2Strategy(session: SparkSession) extends Strategy with Predicat
       }
       WriteToDataSourceV2Exec(writer, invalidateCacheFunc, planLater(query), customMetrics) :: Nil
 
-    case CreateV2Table(catalog, ident, schema, parts, props, ifNotExists) =>
-      val propsWithOwner = CatalogV2Util.withDefaultOwnership(props)
-      CreateTableExec(catalog, ident, schema, parts, propsWithOwner, ifNotExists) :: Nil
+    case c @ CreateV2Table(ResolvedDBObjectName(catalog, name), _, _, _, _, _, _, _, _, _, _, _) =>
+      val propsWithOwner = CatalogV2Util.withDefaultOwnership(convertTableProperties(c))
+      CreateTableExec(catalog.asTableCatalog, name.asIdentifier, c.schema,
+        c.partitioning ++ c.bucketSpec.map(_.asTransform), propsWithOwner, c.ignoreIfExists) :: Nil
 
     case CreateTableAsSelect(catalog, ident, parts, query, props, options, ifNotExists) =>
       val propsWithOwner = CatalogV2Util.withDefaultOwnership(props)
