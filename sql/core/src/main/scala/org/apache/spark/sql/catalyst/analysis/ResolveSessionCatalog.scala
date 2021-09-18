@@ -158,16 +158,21 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
 
     // For CREATE TABLE [AS SELECT], we should use the v1 command if the catalog is resolved to the
     // session catalog and the table provider is not v2.
-    case c @ CreateV2Table(
-        ResolvedDBObjectName(catalog, name), _, _, _, _, prov, _, _, _, serde, _, _)
-        if isSessionCatalog(catalog) && !isV2Provider(prov, serde, ctas = false) =>
+    case CreateV2Table(ResolvedDBObjectName(catalog, name), tableSchema, partWithBuck,
+        FromV2TableProperties(properties, options, serdeInfo, location,
+          comment, provider, external), ignoreIfExists)
+        if isSessionCatalog(catalog) &&
+          !isV2Provider(getProvider(provider, serdeInfo, ctas = false)) =>
 
-      val storageFormat = getStorageFormat(
-        c.provider, c.options, c.location, c.serde, ctas = false)
-      val tableDesc = buildCatalogTable(name.asTableIdentifier, c.tableSchema, c.partitioning,
-        c.bucketSpec, c.properties, getProvider(c.provider, c.serde, ctas = false),
-        c.location, c.comment, storageFormat, c.external)
-      val mode = if (c.ignoreIfExists) SaveMode.Ignore else SaveMode.ErrorIfExists
+      import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
+
+      val storageFormat =
+        getStorageFormat(provider, options, location, serdeInfo, ctas = false)
+      val (partitioning, bucketSpec) = fromPartitioning(partWithBuck)
+      val tableDesc = buildCatalogTable(name.asTableIdentifier, tableSchema, partitioning,
+        bucketSpec, properties, getProvider(provider, serdeInfo, ctas = false),
+        location, comment, storageFormat, external)
+      val mode = if (ignoreIfExists) SaveMode.Ignore else SaveMode.ErrorIfExists
       CreateTable(tableDesc, mode, None)
 
     case c @ CreateTableAsSelectStatement(
@@ -647,12 +652,6 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
       case _ => false
     }
   }
-
-  private def isV2Provider(
-      provider: Option[String],
-      maybeSerdeInfo: Option[SerdeInfo],
-      ctas: Boolean): Boolean =
-    isV2Provider(getProvider(provider, maybeSerdeInfo, ctas))
 
   private object DatabaseInSessionCatalog {
     def unapply(resolved: ResolvedNamespace): Option[String] = resolved match {

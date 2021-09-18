@@ -19,11 +19,8 @@ package org.apache.spark.sql.streaming
 
 import java.util.Locale
 import java.util.concurrent.TimeoutException
-
 import scala.collection.JavaConverters._
-
 import org.apache.hadoop.fs.Path
-
 import org.apache.spark.annotation.Evolving
 import org.apache.spark.api.java.function.VoidFunction2
 import org.apache.spark.sql._
@@ -32,6 +29,7 @@ import org.apache.spark.sql.catalyst.catalog.{CatalogTable, CatalogTableType}
 import org.apache.spark.sql.catalyst.plans.logical.CreateV2Table
 import org.apache.spark.sql.catalyst.streaming.InternalOutputModes
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
+import org.apache.spark.sql.connector.catalog.CatalogV2Util.convertTableProperties
 import org.apache.spark.sql.connector.catalog.{Identifier, SupportsWrite, Table, TableCatalog, TableProvider, V1Table, V2TableWithV1Fallback}
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.errors.QueryCompilationErrors
@@ -293,14 +291,8 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
         UnresolvedDBObjectName(originalMultipartIdentifier, isNamespace = false),
         df.schema.asNullable,
         partitioningColumns.getOrElse(Nil).asTransforms.toSeq,
-        None,
-        Map.empty[String, String],
-        Some(source),
-        Map.empty[String, String],
-        extraOptions.get("path"),
-        None,
-        None,
-        external = false,
+        convertTableProperties(Map.empty[String, String], Map.empty[String, String],
+          None, extraOptions.get("path"), None, Some(source)),
         ignoreIfExists = false)
       Dataset.ofRows(df.sparkSession, cmd)
     }

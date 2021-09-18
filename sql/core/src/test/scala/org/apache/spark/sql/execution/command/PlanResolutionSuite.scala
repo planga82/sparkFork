@@ -26,7 +26,7 @@ import org.mockito.invocation.InvocationOnMock
 
 import org.apache.spark.sql.{AnalysisException, SaveMode}
 import org.apache.spark.sql.catalyst.{AliasIdentifier, TableIdentifier}
-import org.apache.spark.sql.catalyst.analysis.{AnalysisTest, Analyzer, EmptyFunctionRegistry, NoSuchTableException, ResolvedFieldName, ResolvedTable, ResolveSessionCatalog, UnresolvedAttribute, UnresolvedRelation, UnresolvedSubqueryColumnAliases, UnresolvedTable}
+import org.apache.spark.sql.catalyst.analysis.{AnalysisTest, Analyzer, EmptyFunctionRegistry, NoSuchTableException, ResolvedDBObjectName, ResolvedFieldName, ResolveSessionCatalog, ResolvedTable, UnresolvedAttribute, UnresolvedRelation, UnresolvedSubqueryColumnAliases, UnresolvedTable}
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogStorageFormat, CatalogTable, CatalogTableType, InMemoryCatalog, SessionCatalog}
 import org.apache.spark.sql.catalyst.expressions.{AnsiCast, AttributeReference, EqualTo, Expression, InSubquery, IntegerLiteral, ListQuery, Literal, StringLiteral}
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
@@ -483,9 +483,9 @@ class PlanResolutionSuite extends AnalysisTest {
     parseAndResolve(sql) match {
       case create: CreateV2Table =>
         create.name match {
-          case ResolvedTable(catalog, ident, _, _) =>
+          case ResolvedDBObjectName(catalog, name) =>
             assert(catalog.name == "testcat")
-            assert(ident == Identifier.of(Array("mydb"), "table_name"))
+            assert(name == Seq("mydb", "table_name"))
           case other => fail(s"ResolvedTable is expected: $other")
         }
 
@@ -528,9 +528,9 @@ class PlanResolutionSuite extends AnalysisTest {
     parseAndResolve(sql, withDefault = true) match {
       case create: CreateV2Table =>
         create.name match {
-          case ResolvedTable(catalog, ident, _, _) =>
+          case ResolvedDBObjectName(catalog, name) =>
             assert(catalog.name == "testcat")
-            assert(ident == Identifier.of(Array("mydb"), "table_name"))
+            assert(name == Seq("mydb", "table_name"))
           case other => fail(s"ResolvedTable is expected: $other")
         }
         assert(create.tableSchema == new StructType()
@@ -570,9 +570,9 @@ class PlanResolutionSuite extends AnalysisTest {
     parseAndResolve(sql) match {
       case create: CreateV2Table =>
         create.name match {
-          case ResolvedTable(catalog, ident, _, _) =>
+          case ResolvedDBObjectName(catalog, name) =>
             assert(catalog.name == CatalogManager.SESSION_CATALOG_NAME)
-            assert(ident == Identifier.of(Array("mydb"), "page_view"))
+            assert(name == Seq("mydb", "page_view"))
           case other => fail(s"ResolvedTable is expected: $other")
         }
         assert(create.tableSchema == new StructType()

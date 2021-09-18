@@ -47,6 +47,13 @@ private[sql] object CatalogV2Implicits {
     }
   }
 
+  implicit class BucketTransformHelper(trans: BucketTransform) {
+    def asSpec: BucketSpec = {
+      BucketSpec(
+        trans.numBuckets.value(), trans.references.toSeq.map(_.toString), Seq.empty[String])
+    }
+  }
+
   implicit class TransformHelper(transforms: Seq[Transform]) {
     def asPartitionColumns: Seq[String] = {
       val (idTransforms, nonIdTransforms) = transforms.partition(_.isInstanceOf[IdentityTransform])

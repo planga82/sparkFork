@@ -19,12 +19,12 @@ package org.apache.spark.sql.connector.catalog
 
 import java.util
 import java.util.Collections
-
 import scala.collection.JavaConverters._
-
 import org.apache.spark.sql.catalyst.analysis.{NamedRelation, NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
-import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelectStatement, CreateV2Table, ReplaceTableAsSelectStatement, ReplaceTableStatement, SerdeInfo}
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelectStatement, FormatClasses, ReplaceTableAsSelectStatement, ReplaceTableStatement, SerdeInfo}
 import org.apache.spark.sql.connector.catalog.TableChange._
+import org.apache.spark.sql.connector.expressions.{BucketTransform, Transform}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -306,12 +306,7 @@ private[sql] object CatalogV2Util {
     convertTableProperties(r.properties, r.options, r.serde, r.location, r.comment, r.provider)
   }
 
-  def convertTableProperties(c: CreateV2Table): Map[String, String] = {
-    convertTableProperties(
-      c.properties, c.options, c.serde, c.location, c.comment, c.provider, c.external)
-  }
-
-  private def convertTableProperties(
+  def convertTableProperties(
       properties: Map[String, String],
       options: Map[String, String],
       serdeInfo: Option[SerdeInfo],
@@ -327,6 +322,32 @@ private[sql] object CatalogV2Util {
       provider.map(TableCatalog.PROP_PROVIDER -> _) ++
       comment.map(TableCatalog.PROP_COMMENT -> _) ++
       location.map(TableCatalog.PROP_LOCATION -> _)
+  }
+
+  object FromV2TableProperties{
+    def unapply(properties: Map[String, String]): Option[(Map[String, String], Map[String, String],
+        Option[SerdeInfo], Option[String], Option[String], Option[String], Boolean)] = {
+      val options = properties
+        .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX))
+      val external = properties.get(TableCatalog.PROP_EXTERNAL).map(_.toBoolean).getOrElse(false)
+
+      Some((properties -- options.keys,
+       options,
+       convertPropertiesToSerde(properties),
+       properties.get(TableCatalog.PROP_LOCATION),
+       properties.get(TableCatalog.PROP_COMMENT),
+       properties.get(TableCatalog.PROP_PROVIDER),
+       external))
+    }
+  }
+
+  def fromPartitioning(partWithBuck: Seq[Transform]): (Seq[Transform], Option[BucketSpec]) = {
+    val (partitioning, bucketTransform) = partWithBuck.partition{
+      case _: BucketTransform => false
+      case _ => true
+    }
+    val bucketSpec = Option(bucketTransform.last.asInstanceOf[BucketTransform].asSpec)
+    (partitioning, bucketSpec)
   }
 
   /**
@@ -345,10 +366,33 @@ private[sql] object CatalogV2Util {
         s.storedAs.map("hive.stored-as" -> _) ++
         s.serde.map("hive.serde" -> _) ++
         s.serdeProperties.map {
-          case (key, value) => TableCatalog.OPTION_PREFIX + key -> value
+          case (key, value) => TableCatalog.OPTION_PREFIX + "hive." + key -> value
         }
       case None =>
         Map.empty
+    }
+  }
+
+  private def convertPropertiesToSerde(properties: Map[String, String]): Option[SerdeInfo] = {
+    val serdeProperties = properties
+      .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX + "hive."))
+    val optFormatClasses = {
+      (properties.get("hive.input-format"), properties.get("hive.output-format")) match {
+        case(Some(in), Some(out)) => Option(FormatClasses(in, out))
+        case _ => None
+      }
+    }
+    val optStoredAs = properties.get("hive.stored-as")
+    (optFormatClasses, optStoredAs) match {
+      case (None, None) => None
+      case _ => Option(
+        SerdeInfo(
+          optStoredAs,
+          optFormatClasses,
+          properties.get("hive.serde"),
+          serdeProperties
+        )
+      )
     }
   }
 
