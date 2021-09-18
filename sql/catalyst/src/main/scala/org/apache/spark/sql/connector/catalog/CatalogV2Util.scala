@@ -328,7 +328,7 @@ private[sql] object CatalogV2Util {
     def unapply(properties: Map[String, String]): Option[(Map[String, String], Map[String, String],
         Option[SerdeInfo], Option[String], Option[String], Option[String], Boolean)] = {
       val options = properties
-        .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX))
+        .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX)).toMap
       val external = properties.get(TableCatalog.PROP_EXTERNAL).map(_.toBoolean).getOrElse(false)
 
       Some((properties -- options.keys,
@@ -375,7 +375,7 @@ private[sql] object CatalogV2Util {
 
   private def convertPropertiesToSerde(properties: Map[String, String]): Option[SerdeInfo] = {
     val serdeProperties = properties
-      .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX + "hive."))
+      .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX + "hive.")).toMap
     val optFormatClasses = {
       (properties.get("hive.input-format"), properties.get("hive.output-format")) match {
         case(Some(in), Some(out)) => Option(FormatClasses(in, out))
