@@ -19,8 +19,11 @@ package org.apache.spark.sql.streaming
 
 import java.util.Locale
 import java.util.concurrent.TimeoutException
+
 import scala.collection.JavaConverters._
+
 import org.apache.hadoop.fs.Path
+
 import org.apache.spark.annotation.Evolving
 import org.apache.spark.api.java.function.VoidFunction2
 import org.apache.spark.sql._
