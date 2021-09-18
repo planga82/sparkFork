@@ -19,7 +19,9 @@ package org.apache.spark.sql.connector.catalog
 
 import java.util
 import java.util.Collections
+
 import scala.collection.JavaConverters._
+
 import org.apache.spark.sql.catalyst.analysis.{NamedRelation, NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelectStatement, FormatClasses, ReplaceTableAsSelectStatement, ReplaceTableStatement, SerdeInfo}
