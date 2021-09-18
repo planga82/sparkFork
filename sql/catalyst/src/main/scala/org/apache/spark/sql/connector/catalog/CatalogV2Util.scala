@@ -348,7 +348,10 @@ private[sql] object CatalogV2Util {
       case _: BucketTransform => false
       case _ => true
     }
-    val bucketSpec = Option(bucketTransform.last.asInstanceOf[BucketTransform].asSpec)
+    val bucketSpec = bucketTransform.map(_.asInstanceOf[BucketTransform].asSpec) match {
+      case Seq(bucket) => Some(bucket)
+      case _ => None
+    }
     (partitioning, bucketSpec)
   }
 
