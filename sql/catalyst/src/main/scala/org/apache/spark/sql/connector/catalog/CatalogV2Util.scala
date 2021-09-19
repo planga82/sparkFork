@@ -332,8 +332,11 @@ private[sql] object CatalogV2Util {
       val options = properties
         .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX)).toMap
       val external = properties.get(TableCatalog.PROP_EXTERNAL).map(_.toBoolean).getOrElse(false)
+      val propertiesToDelete = options.keys ++ Seq(TableCatalog.PROP_EXTERNAL,
+        TableCatalog.PROP_LOCATION, TableCatalog.PROP_COMMENT, TableCatalog.PROP_PROVIDER,
+        "hive.serde", "hive.input-format", "hive.output-format", "hive.stored-as")
 
-      Some((properties -- options.keys,
+      Some((properties -- propertiesToDelete,
        options,
        convertPropertiesToSerde(properties),
        properties.get(TableCatalog.PROP_LOCATION),
