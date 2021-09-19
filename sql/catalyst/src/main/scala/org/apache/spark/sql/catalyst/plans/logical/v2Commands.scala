@@ -18,6 +18,7 @@
 package org.apache.spark.sql.catalyst.plans.logical
 
 import org.apache.spark.sql.catalyst.analysis.{NamedRelation, PartitionSpec, UnresolvedException}
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSet, Expression, Unevaluable}
 import org.apache.spark.sql.catalyst.plans.DescribeCommandSchema
@@ -202,6 +203,7 @@ case class CreateV2Table(
     name: LogicalPlan,
     tableSchema: StructType,
     partitioning: Seq[Transform],
+    bucketSpec: Option[BucketSpec],
     properties: Map[String, String],
     ignoreIfExists: Boolean) extends UnaryCommand with V2CreateTablePlanMigration {
   override def withPartitioning(rewritten: Seq[Transform]): V2CreateTablePlan = {

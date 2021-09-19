@@ -158,7 +158,7 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
 
     // For CREATE TABLE [AS SELECT], we should use the v1 command if the catalog is resolved to the
     // session catalog and the table provider is not v2.
-    case CreateV2Table(ResolvedDBObjectName(catalog, name), tableSchema, partWithBuck,
+    case CreateV2Table(ResolvedDBObjectName(catalog, name), tableSchema, partitioning, bucketSpec,
         FromV2TableProperties(properties, options, serdeInfo, location,
           comment, provider, external), ignoreIfExists)
         if isSessionCatalog(catalog) &&
@@ -168,7 +168,6 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
 
       val storageFormat =
         getStorageFormat(provider, options, location, serdeInfo, ctas = false)
-      val (partitioning, bucketSpec) = fromPartitioning(partWithBuck)
       val tableDesc = buildCatalogTable(name.asTableIdentifier, tableSchema, partitioning,
         bucketSpec, properties, getProvider(provider, serdeInfo, ctas = false),
         location, comment, storageFormat, external)

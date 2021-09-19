@@ -23,10 +23,8 @@ import java.util.Collections
 import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.catalyst.analysis.{NamedRelation, NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelectStatement, FormatClasses, ReplaceTableAsSelectStatement, ReplaceTableStatement, SerdeInfo}
 import org.apache.spark.sql.connector.catalog.TableChange._
-import org.apache.spark.sql.connector.expressions.{BucketTransform, Transform}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -344,18 +342,6 @@ private[sql] object CatalogV2Util {
        properties.get(TableCatalog.PROP_PROVIDER),
        external))
     }
-  }
-
-  def fromPartitioning(partWithBuck: Seq[Transform]): (Seq[Transform], Option[BucketSpec]) = {
-    val (partitioning, bucketTransform) = partWithBuck.partition{
-      case _: BucketTransform => false
-      case _ => true
-    }
-    val bucketSpec = bucketTransform.map(_.asInstanceOf[BucketTransform].asSpec) match {
-      case Seq(bucket) => Some(bucket)
-      case _ => None
-    }
-    (partitioning, bucketSpec)
   }
 
   /**
