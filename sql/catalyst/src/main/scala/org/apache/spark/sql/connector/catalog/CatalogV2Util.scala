@@ -327,12 +327,14 @@ private[sql] object CatalogV2Util {
   object FromV2TableProperties{
     def unapply(properties: Map[String, String]): Option[(Map[String, String], Map[String, String],
         Option[SerdeInfo], Option[String], Option[String], Option[String], Boolean)] = {
-      val options = properties
-        .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX)).toMap
+      val originalOptions = properties.filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX))
+      val options = originalOptions
+        .map{ case (k, v) => k.stripPrefix(TableCatalog.OPTION_PREFIX) -> v}.toMap
       val external = properties.get(TableCatalog.PROP_EXTERNAL).map(_.toBoolean).getOrElse(false)
-      val propertiesToDelete = options.keys ++ Seq(TableCatalog.PROP_EXTERNAL,
-        TableCatalog.PROP_LOCATION, TableCatalog.PROP_COMMENT, TableCatalog.PROP_PROVIDER,
-        "hive.serde", "hive.input-format", "hive.output-format", "hive.stored-as")
+      val propertiesToDelete = originalOptions.keys ++ options.keys ++
+        Seq(TableCatalog.PROP_EXTERNAL, TableCatalog.PROP_LOCATION, TableCatalog.PROP_COMMENT,
+          TableCatalog.PROP_PROVIDER, "hive.serde", "hive.input-format", "hive.output-format",
+          "hive.stored-as")
 
       Some((properties -- propertiesToDelete,
        options,
