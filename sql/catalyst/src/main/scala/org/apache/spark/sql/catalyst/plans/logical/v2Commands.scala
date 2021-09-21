@@ -208,16 +208,19 @@ trait V2CreateTablePlanMigration extends V2CreateTablePlan {
 case class CreateV2Table(
     name: LogicalPlan,
     tableSchema: StructType,
-    partitioning: Seq[Transform],
+    part: Seq[Transform],
     bucketSpec: Option[BucketSpec],
     properties: Map[String, String],
     ignoreIfExists: Boolean) extends UnaryCommand with V2CreateTablePlanMigration {
   override def withPartitioning(rewritten: Seq[Transform]): V2CreateTablePlan = {
-    this.copy(partitioning = rewritten)
+    this.copy(part = rewritten)
   }
   override def child: LogicalPlan = name
-  override protected def withNewChildInternal(newChild: LogicalPlan): CreateV2Table =
+  override protected def withNewChildInternal(newChild: LogicalPlan): CreateV2Table = {
     copy(name = newChild)
+  }
+  import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
+  override def partitioning: Seq[Transform] = part ++ bucketSpec.map(_.asTransform)
 }
 
 /**
