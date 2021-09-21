@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.catalyst.plans.logical
 
-import org.apache.spark.sql.catalyst.analysis.{NamedRelation, PartitionSpec, UnresolvedException}
+import org.apache.spark.sql.catalyst.analysis.{NamedRelation, PartitionSpec, ResolvedDBObjectName, UnresolvedDBObjectName, UnresolvedException}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSet, Expression, Unevaluable}
@@ -192,7 +192,13 @@ trait V2CreateTablePlan extends LogicalPlan {
 
 /** This trait is going to be used for the migration. It will disappear when it finish */
 trait V2CreateTablePlanMigration extends V2CreateTablePlan {
-  def tableName: Identifier = null
+  def tableName: Identifier = {
+    import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
+    name match {
+      case ResolvedDBObjectName(_, name) => name.asIdentifier
+      case UnresolvedDBObjectName(name, _) => name.asIdentifier
+   }
+  }
   def name: LogicalPlan
 }
 
