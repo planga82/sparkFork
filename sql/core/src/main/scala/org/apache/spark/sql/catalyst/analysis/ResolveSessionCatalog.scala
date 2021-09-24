@@ -159,8 +159,8 @@ class ResolveSessionCatalog(val catalogManager: CatalogManager)
     // For CREATE TABLE [AS SELECT], we should use the v1 command if the catalog is resolved to the
     // session catalog and the table provider is not v2.
     case CreateV2Table(ResolvedDBObjectName(catalog, name), tableSchema, partitioning, bucketSpec,
-        FromV2TableProperties(properties, options, serdeInfo, location,
-          comment, provider, external), ignoreIfExists)
+        serdeInfo, FromV2TableProperties(properties, options, location, comment, provider,
+        external), ignoreIfExists)
         if isSessionCatalog(catalog) &&
           !isV2Provider(getProvider(provider, serdeInfo, ctas = false)) =>
 

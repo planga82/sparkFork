@@ -210,6 +210,7 @@ case class CreateV2Table(
     tableSchema: StructType,
     part: Seq[Transform],
     bucketSpec: Option[BucketSpec],
+    serde: Option[SerdeInfo],
     properties: Map[String, String],
     ignoreIfExists: Boolean) extends UnaryCommand with V2CreateTablePlanMigration {
   override def withPartitioning(rewritten: Seq[Transform]): V2CreateTablePlan = {

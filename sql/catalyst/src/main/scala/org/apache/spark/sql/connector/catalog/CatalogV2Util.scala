@@ -23,7 +23,7 @@ import java.util.Collections
 import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.catalyst.analysis.{NamedRelation, NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
-import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelectStatement, FormatClasses, ReplaceTableAsSelectStatement, ReplaceTableStatement, SerdeInfo}
+import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelectStatement, ReplaceTableAsSelectStatement, ReplaceTableStatement, SerdeInfo}
 import org.apache.spark.sql.connector.catalog.TableChange._
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
@@ -326,22 +326,17 @@ private[sql] object CatalogV2Util {
 
   object FromV2TableProperties{
     def unapply(properties: Map[String, String]): Option[(Map[String, String], Map[String, String],
-        Option[SerdeInfo], Option[String], Option[String], Option[String], Boolean)] = {
+        Option[String], Option[String], Option[String], Boolean)] = {
       val originalOptions = properties.filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX))
       val options = originalOptions
         .map{ case (k, v) => k.stripPrefix(TableCatalog.OPTION_PREFIX) -> v}.toMap
       val external = properties.get(TableCatalog.PROP_EXTERNAL).map(_.toBoolean).getOrElse(false)
-      val serdePropertiesPrefix = "hive." + TableCatalog.OPTION_PREFIX
-      val serdePropertiesToDelete = properties.keys.filter(_.startsWith(serdePropertiesPrefix))
       val propertiesToDelete = originalOptions.keys ++ options.keys ++
         Seq(TableCatalog.PROP_EXTERNAL, TableCatalog.PROP_LOCATION, TableCatalog.PROP_COMMENT,
-          TableCatalog.PROP_PROVIDER, "hive.serde", "hive.input-format", "hive.output-format",
-          "hive.stored-as") ++
-        serdePropertiesToDelete
+          TableCatalog.PROP_PROVIDER)
 
       Some((properties -- propertiesToDelete,
        options,
-       convertPropertiesToSerde(properties, serdePropertiesPrefix),
        properties.get(TableCatalog.PROP_LOCATION),
        properties.get(TableCatalog.PROP_COMMENT),
        properties.get(TableCatalog.PROP_PROVIDER),
@@ -356,7 +351,7 @@ private[sql] object CatalogV2Util {
    *  - ROW FORMAT SERDE: hive.serde
    *  - SERDEPROPERTIES: add "option." prefix
    */
-  private def convertToProperties(serdeInfo: Option[SerdeInfo]): Map[String, String] = {
+  def convertToProperties(serdeInfo: Option[SerdeInfo]): Map[String, String] = {
     serdeInfo match {
       case Some(s) =>
         s.formatClasses.map { f =>
@@ -365,36 +360,10 @@ private[sql] object CatalogV2Util {
         s.storedAs.map("hive.stored-as" -> _) ++
         s.serde.map("hive.serde" -> _) ++
         s.serdeProperties.map {
-          case (key, value) => "hive." + TableCatalog.OPTION_PREFIX + key -> value
+          case (key, value) => TableCatalog.OPTION_PREFIX + key -> value
         }
       case None =>
         Map.empty
-    }
-  }
-
-  private def convertPropertiesToSerde(properties: Map[String, String],
-      serdePropertiesPrefix: String): Option[SerdeInfo] = {
-    val serdeProperties = properties
-      .filterKeys(_.startsWith(serdePropertiesPrefix))
-      .map{ case (k, v) => k.stripPrefix(serdePropertiesPrefix) -> v}.toMap
-    val optFormatClasses = {
-      (properties.get("hive.input-format"), properties.get("hive.output-format")) match {
-        case(Some(in), Some(out)) => Option(FormatClasses(in, out))
-        case _ => None
-      }
-    }
-    val optStoredAs = properties.get("hive.stored-as")
-    val optHiveSerde = properties.get("hive.serde")
-    (optFormatClasses, optStoredAs, optHiveSerde) match {
-      case (None, None, None) => None
-      case _ => Option(
-        SerdeInfo(
-          optStoredAs,
-          optFormatClasses,
-          properties.get("hive.serde"),
-          serdeProperties
-        )
-      )
     }
   }
 

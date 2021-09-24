@@ -3455,8 +3455,8 @@ class AstBuilder extends SqlBaseBaseVisitor[AnyRef] with SQLConfHelper with Logg
           // convert the bucket spec and add it as a transform
           partitioning,
           bucketSpec,
-          convertTableProperties(properties, options, serdeInfo, location, comment, provider,
-            external),
+          serdeInfo,
+          convertTableProperties(properties, options, None, location, comment, provider, external),
           ignoreIfExists = ifNotExists)
     }
   }

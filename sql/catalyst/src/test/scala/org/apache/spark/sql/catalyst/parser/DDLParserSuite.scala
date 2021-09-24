@@ -2452,8 +2452,8 @@ class DDLParserSuite extends AnalysisTest {
     def apply(plan: LogicalPlan): TableSpec = {
       plan match {
         case CreateV2Table(UnresolvedDBObjectName(name, _), tableSchema, partitioning, bucketSpec,
-        FromV2TableProperties(properties, options, serdeInfo, location,
-        comment, provider, external), _) =>
+            serdeInfo, FromV2TableProperties(properties, options, location, comment, provider,
+            external), _) =>
           TableSpec(
             name,
             Some(tableSchema),

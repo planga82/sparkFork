@@ -295,6 +295,7 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
         df.schema.asNullable,
         partitioningColumns.getOrElse(Nil).asTransforms.toSeq,
         None,
+        None,
         convertTableProperties(Map.empty[String, String], Map.empty[String, String],
           None, extraOptions.get("path"), None, Some(source)),
         ignoreIfExists = false)
