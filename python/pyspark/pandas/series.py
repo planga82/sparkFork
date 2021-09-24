@@ -47,7 +47,7 @@ import numpy as np
 import pandas as pd
 from pandas.core.accessor import CachedAccessor
 from pandas.io.formats.printing import pprint_thing
-from pandas.api.types import is_list_like, is_hashable
+from pandas.api.types import is_list_like, is_hashable, CategoricalDtype
 from pandas.tseries.frequencies import DateOffset
 from pyspark.sql import functions as F, Column, DataFrame as SparkDataFrame
 from pyspark.sql.types import (
@@ -1963,7 +1963,7 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
             if not isinstance(value, (float, int, str, bool)):
                 raise TypeError("Unsupported type %s" % type(value).__name__)
             if limit is not None:
-                raise ValueError("limit parameter for value is not support now")
+                raise NotImplementedError("limit parameter for value is not support now")
             scol = F.when(cond, value).otherwise(scol)
         else:
             if method in ["ffill", "pad"]:
@@ -3597,7 +3597,7 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
             raise ValueError(msg)
 
         if self._internal.index_level > 1:
-            raise ValueError("rank do not support index now")
+            raise NotImplementedError("rank do not support MultiIndex now")
 
         if ascending:
             asc_func = lambda scol: scol.asc()
@@ -4098,7 +4098,11 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
             pdf = sdf.limit(2).toPandas()
             length = len(pdf)
             if length == 1:
-                return pdf[internal.data_spark_column_names[0]].iloc[0]
+                val = pdf[internal.data_spark_column_names[0]].iloc[0]
+                if isinstance(self.dtype, CategoricalDtype):
+                    return self.dtype.categories[val]
+                else:
+                    return val
 
             item_string = name_like_string(item)
             sdf = sdf.withColumn(SPARK_DEFAULT_INDEX_NAME, SF.lit(str(item_string)))
@@ -6254,7 +6258,7 @@ class Series(Frame, IndexOpsMixin, Generic[T]):
         """
         axis = validate_axis(axis)
         if axis == 1:
-            raise ValueError("Series does not support columns axis.")
+            raise NotImplementedError("Series does not support columns axis.")
 
         scol = sfun(self)
 
