@@ -214,7 +214,7 @@ case class CreateV2Table(
     properties: Map[String, String],
     ignoreIfExists: Boolean) extends UnaryCommand with V2CreateTablePlanMigration {
   override def withPartitioning(rewritten: Seq[Transform]): V2CreateTablePlan = {
-    this.copy(part = rewritten)
+    this.copy(part = rewritten, bucketSpec = None)
   }
   override def child: LogicalPlan = name
   override protected def withNewChildInternal(newChild: LogicalPlan): CreateV2Table = {

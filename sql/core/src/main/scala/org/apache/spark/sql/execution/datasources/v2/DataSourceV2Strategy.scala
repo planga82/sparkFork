@@ -158,6 +158,7 @@ class DataSourceV2Strategy(session: SparkSession) extends Strategy with Predicat
         props, ifNotExists) =>
       val propsWithSerde = props ++ CatalogV2Util.convertToProperties(serde)
       val propsWithOwner = CatalogV2Util.withDefaultOwnership(propsWithSerde)
+      // convert the bucket spec and add it as a transform
       CreateTableExec(catalog.asTableCatalog, name.asIdentifier, schema,
         partitioning ++ bucketSpec.map(_.asTransform), propsWithOwner, ifNotExists) :: Nil
 

@@ -3452,7 +3452,6 @@ class AstBuilder extends SqlBaseBaseVisitor[AnyRef] with SQLConfHelper with Logg
         CreateV2Table(
           UnresolvedDBObjectName(table, isNamespace = false),
           schema,
-          // convert the bucket spec and add it as a transform
           partitioning,
           bucketSpec,
           serdeInfo,
