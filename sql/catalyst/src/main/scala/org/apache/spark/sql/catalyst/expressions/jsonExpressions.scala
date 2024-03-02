@@ -374,19 +374,14 @@ class GetJsonObjectEvaluator(cachedPath: UTF8String) {
           flattenGenerator.writeStartArray()
 
           while (p.nextToken() != END_ARRAY) {
-            // track the number of array elements and only emit an outer array if
-            // we've written more than one element, this matches Hive's behavior
             dirty += (if (evaluatePath(p, flattenGenerator, nextStyle, xs)) 1 else 0)
           }
           flattenGenerator.writeEndArray()
         }
 
         val buf = buffer.getBuffer
-        if (dirty > 1) {
+        if (dirty >= 1) {
           g.writeRawValue(buf.toString)
-        } else if (dirty == 1) {
-          // remove outer array tokens
-          g.writeRawValue(buf.substring(1, buf.length() - 1))
         } // else do not write anything
 
         dirty > 0

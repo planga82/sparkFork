@@ -142,7 +142,7 @@ class JsonExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper with 
   test("$.store.book[*].reader") {
     checkEvaluation(
       GetJsonObject(Literal(json), Literal("$.store.book[*].reader")),
-      """[{"age":25,"name":"bob"},{"age":26,"name":"jack"}]""")
+      """[[{"age":25,"name":"bob"},{"age":26,"name":"jack"}]]""")
   }
 
   test("$.store.basket[0][1]") {
@@ -898,5 +898,12 @@ class JsonExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper with 
           )
         )
     }
+  }
+
+  test("SPARK-46778: get_json_object should be consistent when query a list") {
+    checkEvaluation(
+      GetJsonObject(Literal("""[{"a":"A"},{"b":"B"}]"""), Literal("$[*].a")), """["A"]""")
+    checkEvaluation(
+      GetJsonObject(Literal("""[{"a":"A"},{"a":"B"}]"""), Literal("$[*].a")), """["A","B"]""")
   }
 }
